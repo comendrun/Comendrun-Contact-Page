@@ -48,7 +48,7 @@ sudo chown -R www-data:www-data /var/www/html/
 sudo chmod -R 755 /var/www/html/
 ```
 
-#### Configure Nginx
+#### Configure Nginx with Bot Protection
 
 Create/edit `/etc/nginx/sites-available/default`:
 
@@ -61,6 +61,25 @@ server {
     root /var/www/html;
     index index.html;
 
+    # Bot blocking - return empty responses for known bots
+    if ($http_user_agent ~* "(bot|crawler|spider|scraper|wget|curl|googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|twitterbot|linkedinbot|whatsapp|applebot|ia_archiver|semrushbot|ahrefsbot|mj12bot)") {
+        return 204;
+    }
+
+    # Block requests without proper headers
+    if ($http_user_agent = "") {
+        return 403;
+    }
+
+    # Block requests from suspicious IPs (add known bot networks)
+    # deny 66.249.64.0/19;  # Google
+    # deny 207.46.0.0/16;   # Microsoft/Bing
+    # deny 72.30.0.0/16;    # Yahoo
+
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=general:10m rate=10r/m;
+    limit_req zone=general burst=5 nodelay;
+
     # Gzip compression
     gzip on;
     gzip_vary on;
@@ -70,12 +89,16 @@ server {
         try_files $uri $uri.html $uri/ =404;
     }
 
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "no-referrer-when-downgrade" always;
-    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
+    # Block common bot paths
+    location ~ /(robots\.txt|sitemap\.xml|\.well-known) {
+        return 404;
+    }
+
+    # Security headers (minimal to avoid detection)
+    add_header X-Robots-Tag "noindex, nofollow, nosnippet, noarchive, noimageindex" always;
+
+    # Remove server signature
+    server_tokens off;
 }
 ```
 
@@ -110,14 +133,42 @@ This static site uses minimal resources:
 
 Perfect for your 1GB RAM VPS alongside VPN services.
 
-## 🛡️ Security & VPN Integration
+## 🔒 Anti-Detection Features
 
-### Why This Works Well:
+### Multiple Layers of Protection:
 
-1. **Legitimate Traffic**: Creates normal HTTPS web traffic
-2. **Static Content**: No server-side processing = minimal resources
-3. **Professional Appearance**: Looks like a genuine portfolio site
-4. **SEO Friendly**: Meta tags and proper structure for search engines
+1. **robots.txt**: Blocks all search engines and crawlers
+2. **Meta Tags**: `noindex`, `nofollow`, `noarchive`, `nosnippet`
+3. **Nginx Bot Blocking**: Returns empty responses to known bots
+4. **JavaScript Bot Detection**: Detects headless browsers and automation tools
+5. **Human Interaction Required**: Content only shows after mouse/touch/keyboard interaction
+6. **Rate Limiting**: Prevents aggressive crawling
+7. **Minimal Server Signatures**: Reduces fingerprinting
+
+### How It Works:
+
+- **Bots see**: Just a loading screen or get blocked entirely
+- **Humans see**: Full portfolio after brief interaction
+- **Search engines**: Completely blocked from indexing
+- **Archive services**: Cannot archive the content
+
+### Additional Privacy Steps:
+
+```bash
+# Remove server version from headers
+echo 'server_tokens off;' | sudo tee -a /etc/nginx/nginx.conf
+
+# Create fake 404 for common bot paths
+sudo mkdir -p /var/www/html/.well-known
+echo "Not found" | sudo tee /var/www/html/.well-known/index.html
+```
+
+### Domain Privacy:
+
+- Don't use your real name in domain registration
+- Use privacy protection services
+- Consider using a subdomain of a common hosting provider
+- Avoid linking from your real social media accounts
 
 ### VPN Coexistence:
 

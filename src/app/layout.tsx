@@ -2,17 +2,15 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Professional Portfolio - Software Developer",
-  description:
-    "Senior Software Developer specializing in full-stack web development, cloud architecture, and modern JavaScript frameworks.",
-  keywords:
-    "software developer, full-stack, react, nodejs, cloud computing, web development",
-  authors: [{ name: "Portfolio Owner" }],
-  openGraph: {
-    title: "Professional Portfolio - Software Developer",
-    description:
-      "Senior Software Developer specializing in full-stack web development",
-    type: "website",
+  title: "Personal Website",
+  description: "Personal website and portfolio.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    nosnippet: true,
+    noimageindex: true,
+    noarchive: true,
   },
 };
 
