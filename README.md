@@ -1,36 +1,167 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Portfolio Cover Site - Setup & Deployment Guide
 
-## Getting Started
+This is a lightweight, static Next.js portfolio website designed to run alongside VPN services on a VPS.
 
-First, run the development server:
+## 🚀 Quick Start
+
+### 1. Setup Project
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Clone or create the project
+mkdir portfolio-cover-site
+cd portfolio-cover-site
+
+# Initialize with pnpm
+pnpm init
+
+# Install dependencies
+pnpm install next@15.4.6 react@19 react-dom@19
+pnpm install -D @types/node @types/react @types/react-dom eslint eslint-config-next postcss tailwindcss@4.0.0 typescript
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Build Static Site
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Build the static export
+pnpm run build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# The static files will be in the 'out' directory
+```
 
-## Learn More
+### 3. VPS Deployment
 
-To learn more about Next.js, take a look at the following resources:
+#### Install Nginx (if not already installed)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+sudo apt update
+sudo apt install nginx
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+#### Deploy Static Files
 
-## Deploy on Vercel
+```bash
+# Copy static files to nginx directory
+sudo cp -r out/* /var/www/html/
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Set proper permissions
+sudo chown -R www-data:www-data /var/www/html/
+sudo chmod -R 755 /var/www/html/
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+#### Configure Nginx
+
+Create/edit `/etc/nginx/sites-available/default`:
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name your-domain.com;
+
+    root /var/www/html;
+    index index.html;
+
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    location / {
+        try_files $uri $uri.html $uri/ =404;
+    }
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
+}
+```
+
+#### SSL Setup (Recommended)
+
+```bash
+# Install Certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Get SSL certificate
+sudo certbot --nginx -d your-domain.com
+
+# Auto-renewal is usually set up automatically
+sudo certbot renew --dry-run
+```
+
+#### Restart Services
+
+```bash
+sudo nginx -t  # Test configuration
+sudo systemctl reload nginx
+sudo systemctl enable nginx
+```
+
+## 🔧 Resource Usage
+
+This static site uses minimal resources:
+
+- **Memory**: ~5-10MB for nginx serving static files
+- **CPU**: Negligible when serving static content
+- **Storage**: ~2-3MB for all static assets
+
+Perfect for your 1GB RAM VPS alongside VPN services.
+
+## 🛡️ Security & VPN Integration
+
+### Why This Works Well:
+
+1. **Legitimate Traffic**: Creates normal HTTPS web traffic
+2. **Static Content**: No server-side processing = minimal resources
+3. **Professional Appearance**: Looks like a genuine portfolio site
+4. **SEO Friendly**: Meta tags and proper structure for search engines
+
+### VPN Coexistence:
+
+- Web traffic on port 80/443
+- VPN can use other ports (1194 for OpenVPN, 51820 for WireGuard)
+- Nginx can proxy different services if needed
+
+## 📝 Customization
+
+Edit `src/app/page.tsx` to customize:
+
+- Personal information
+- Skills and experience
+- Contact details
+- Link to your main portfolio (comendrun.com)
+
+## 🚀 Advanced: Automated Deployment
+
+Create a simple deploy script `deploy.sh`:
+
+```bash
+#!/bin/bash
+pnpm run build
+sudo cp -r out/* /var/www/html/
+sudo chown -R www-data:www-data /var/www/html/
+sudo systemctl reload nginx
+echo "Deployment complete!"
+```
+
+Make it executable: `chmod +x deploy.sh`
+
+## 📊 Monitoring
+
+Check nginx access logs to see if your cover is working:
+
+```bash
+sudo tail -f /var/log/nginx/access.log
+```
+
+This will show legitimate web traffic hits, making your server appear as a normal web server.
+
+## 🎯 Final Tips
+
+1. **Keep it updated**: Occasionally update content to appear active
+2. **Monitor resources**: Use `htop` to ensure VPN + website coexist well
+3. **Backup**: Your static site is just files - easy to backup
+4. **SSL is crucial**: Always use HTTPS for credibility and security
